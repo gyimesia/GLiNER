@@ -17,9 +17,8 @@ df = df.rename(columns={"name": "person", "phone": "phone number"})
 
 # extractLabels.py gathers the list of used BIO labels in the dataset
 # BIO labels and [ENT] type labels mapped manually
-FP = 0
-FN = 0
-TP = 0
+
+res = {''TP': 0, 'FP': 0, 'FN': 0}
 
 label_map = {  # 'job': True,
               'phone number': True,
@@ -33,25 +32,25 @@ all_labels = list(label_map.keys())
 
 # Loading the module
 model_small = GLiNER.from_pretrained("vicgalle/gliner-small-pii", load_tokenizer="True")
-# model_multi = GLiNER.from_pretrained("urchade/gliner_multi_pii-v1")
 
-for i in range(50):
+for i in range(5):
     text = df.loc[i]['text']
     label_map = set_labels(label_map, df.loc[i])
     entities = model_small.predict_entities(text, all_labels, threshold=0.7)
     for entity in entities:
         if df.loc[i, entity['label']] == entity['text']:
             print(entity['text'], 'TP')
-            TP += 1
+            res['TP'] += 1
             label_map[entity['label']] = False
         else:
             print(entity['text'], 'FP', df.loc[i, entity['label']])
-            FP += 1
+            res['FP'] += 1
     for key in list(label_map.keys()):
         if label_map[key]:
             print('FN', key)
-            FN += 1
+            res['FN'] += 1
 
 print('FN:', FN, 'TP:', TP, 'FP:', FP)
+print(res)
 
 print()
