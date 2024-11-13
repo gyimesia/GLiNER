@@ -4,7 +4,7 @@ import math
 import ast
 import matplotlib.pyplot as plt
 
-numberofevals = 10
+numberofevals = 1
 
 
 def set_labels(labels, ser):
@@ -51,6 +51,7 @@ columns.extend(['sum', 'threshold'])
 true_positives = pd.DataFrame(columns=columns)
 false_positives = pd.DataFrame(columns=columns)
 false_negatives = pd.DataFrame(columns=columns)
+true_negatives = pd.DataFrame(columns=columns)
 
 for eval_round in range(numberofevals):
     certainty_threshold = round(eval_round * 0.05 + 0.54, 2)
@@ -81,18 +82,29 @@ for eval_round in range(numberofevals):
                 false_negatives.loc[eval_round, key] += 1
                 false_negatives.loc[eval_round, 'sum'] += 1
 
-print(true_positives)
-print(false_positives)
-print(false_negatives)
 
 # actual TN = maxTN - FP
 # maxTN = all - TP
 
+for i, row in true_positives.iterrows():
+    token_num = len(tokens_labels[i][0])
+    for col in row:
+        if col != 'threshold':
+            true_negatives.loc[i, col] = token_num - true_positives[i, col]
+        else:
+            true_negatives.loc[i, col] = true_positives[i, col]
+
+print(true_positives)
+print(false_positives)
+print(false_negatives)
+print(true_negatives)
 
 
 plt.plot(true_positives['threshold'], true_positives['sum'], label='TP', color='green')
 plt.plot(false_positives['threshold'], false_positives['sum'], label='FP', color='blue')
 plt.plot(false_negatives['threshold'], false_negatives['sum'], label='FN', color='red')
+plt.plot(true_negatives['threshold'], true_negatives['sum'], label='TN', color='orange')
+
 plt.legend()
 
 plt.show()
