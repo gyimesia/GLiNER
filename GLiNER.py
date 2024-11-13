@@ -13,11 +13,11 @@ def set_labels(labels, ser):
     return labels
 
 
-def token_label_pairs(tokens_labels):
+def token_label_pairs(token_label_list):
     pairs = []
-    for i, x in enumerate(tokens_labels):
-        token_list = ast.literal_eval(tokens_labels[i][0])
-        label_list = ast.literal_eval(tokens_labels[i][1])
+    for i, x in enumerate(token_label_list):
+        token_list = ast.literal_eval(token_label_list[i][0])
+        label_list = ast.literal_eval(token_label_list[i][1])
         pairs.append([token_list, label_list])
     return pairs
 
@@ -52,9 +52,9 @@ true_positives = pd.DataFrame(columns=columns)
 false_positives = pd.DataFrame(columns=columns)
 false_negatives = pd.DataFrame(columns=columns)
 true_negatives = pd.DataFrame(columns=columns)
-model_accuracy = pd.DataFrame(columns=columns)
-model_recall = pd.DataFrame(columns=columns)
-model_precision = pd.DataFrame(columns=columns)
+accuracy = pd.DataFrame(columns=columns)
+recall = pd.DataFrame(columns=columns)
+precision = pd.DataFrame(columns=columns)
 
 for eval_round in range(numberofevals):
     certainty_threshold = round(eval_round * 0.05 + 0.54, 2)
@@ -95,21 +95,20 @@ for i, row in true_positives.iterrows():
         if col != 'threshold':
             true_negatives.loc[i, col] = token_num - true_positives.loc[i, col] - false_positives.loc[i, col] - \
                                          false_negatives.loc[i, col]
-            model_accuracy.loc[i, col] = (true_positives.loc[i, col] + true_negatives.loc[i, col]) / token_num
-            model_recall.loc[i, col] = true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col])
-            model_precision.loc[i, col] = (true_positives.loc[i, col] + false_positives.loc[i, col]) and\
-                                          (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_positives.loc[i, col]))
+            accuracy.loc[i, col] = (true_positives.loc[i, col] + true_negatives.loc[i, col]) / token_num
+            recall.loc[i, col] = true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col])
+            precision.loc[i, col] = (true_positives.loc[i, col] + false_positives.loc[i, col]) and\
+                                    (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_positives.loc[i, col]))
         else:
             true_negatives.loc[i, col] = true_positives.loc[i, col]
-            model_accuracy.loc[i, col] = true_positives.loc[i, col]
-            model_recall.loc[i, col] = true_positives.loc[i, col]
-            model_precision.loc[i, col] = true_positives.loc[i, col]
+            accuracy.loc[i, col] = true_positives.loc[i, col]
+            recall.loc[i, col] = true_positives.loc[i, col]
+            precision.loc[i, col] = true_positives.loc[i, col]
 
 
-
-plt.plot(model_accuracy['threshold'], model_accuracy['email'], label='Accuracy', color='green')
-plt.plot(model_recall['threshold'], model_recall['email'], label='Recall', color='blue')
-plt.plot(model_precision['threshold'], model_precision['email'], label='Precision', color='red')
+plt.plot(accuracy['threshold'], accuracy['email'], label='Accuracy', color='green')
+plt.plot(recall['threshold'], recall['email'], label='Recall', color='blue')
+plt.plot(precision['threshold'], precision['email'], label='Precision', color='red')
 
 plt.legend()
 
