@@ -33,11 +33,12 @@ def add_df_row(dframe, cthreshold, rownum):
 df_orig = pd.read_csv('./input/pii_dataset.csv', header=0)
 df = df_orig.drop(columns=['document', 'prompt', 'prompt_id', 'len', 'trailing_whitespace'])
 
-label_map = {'hobby': True,
-             'phone': True,
-             'email': True,
-             'address': True,
-             'url': True}
+label_map = {'phone': True,
+             #'email': True,
+             #'address': True,
+             #'url': True,
+             #'hobby': True
+             }
 
 # Used [ENT] types
 all_labels = list(label_map.keys())
@@ -63,7 +64,7 @@ for eval_round in range(numberofevals):
     false_positives = add_df_row(false_positives, certainty_threshold, eval_round)
     false_negatives = add_df_row(false_negatives, certainty_threshold, eval_round)
 
-    for i in range(200):
+    for i in range(500):
         text = df.loc[i]['text']
         label_map = set_labels(label_map, df.loc[i])
         entities = model_small.predict_entities(text, all_labels, threshold=certainty_threshold)
@@ -106,6 +107,18 @@ for i, row in true_positives.iterrows():
             precision.loc[i, col] = true_positives.loc[i, col]
 
 
+key = 'phone/'
+
+true_positives.to_csv("./output/" + key + "TP500.csv")
+true_negatives.to_csv("./output/" + key + "TN500.csv")
+false_positives.to_csv("./output/" + key + "FP500.csv")
+false_negatives.to_csv("./output/" + key + "FN500.csv")
+accuracy.to_csv("./output/" + key + "accuracy500.csv")
+precision.to_csv("./output/" + key + "precision500.csv")
+recall.to_csv("./output/" + key + "recall500.csv")
+
+
+'''
 plt.plot(accuracy['threshold'], accuracy['email'], label='Accuracy', color='green')
 plt.plot(recall['threshold'], recall['email'], label='Recall', color='blue')
 plt.plot(precision['threshold'], precision['email'], label='Precision', color='red')
@@ -113,3 +126,4 @@ plt.plot(precision['threshold'], precision['email'], label='Precision', color='r
 plt.legend()
 
 plt.show()
+'''
