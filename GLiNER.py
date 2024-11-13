@@ -33,9 +33,9 @@ def add_df_row(dframe, cthreshold, rownum):
 df_orig = pd.read_csv('./input/pii_dataset.csv', header=0)
 df = df_orig.drop(columns=['document', 'prompt', 'prompt_id', 'len', 'trailing_whitespace'])
 
-label_map = {'phone': True,
+label_map = {#'phone': True,
              #'email': True,
-             #'address': True,
+             'address': True,
              #'url': True,
              #'hobby': True
              }
@@ -118,7 +118,7 @@ print(precision)
 print(recall)
 
 
-key = 'phone/'
+key = 'address/'
 
 true_positives.to_csv("./output/" + key + "TP500.csv")
 true_negatives.to_csv("./output/" + key + "TN500.csv")
