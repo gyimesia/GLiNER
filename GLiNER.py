@@ -4,7 +4,7 @@ import math
 import ast
 import matplotlib.pyplot as plt
 
-numberofevals = 1
+numberofevals = 10
 
 
 def set_labels(labels, ser):
@@ -52,6 +52,9 @@ true_positives = pd.DataFrame(columns=columns)
 false_positives = pd.DataFrame(columns=columns)
 false_negatives = pd.DataFrame(columns=columns)
 true_negatives = pd.DataFrame(columns=columns)
+model_accuracy = pd.DataFrame(columns=columns)
+model_recall = pd.DataFrame(columns=columns)
+model_precision = pd.DataFrame(columns=columns)
 
 for eval_round in range(numberofevals):
     certainty_threshold = round(eval_round * 0.05 + 0.54, 2)
@@ -60,50 +63,53 @@ for eval_round in range(numberofevals):
     false_positives = add_df_row(false_positives, certainty_threshold, eval_round)
     false_negatives = add_df_row(false_negatives, certainty_threshold, eval_round)
 
-    for i in range(10):
+    for i in range(200):
         text = df.loc[i]['text']
         label_map = set_labels(label_map, df.loc[i])
         entities = model_small.predict_entities(text, all_labels, threshold=certainty_threshold)
 
         for entity in entities:
             if df.loc[i, entity['label']] == entity['text']:
-                print('TP',entity['text'], entity['label'])
                 true_positives.loc[eval_round, entity['label']] += 1
                 true_positives.loc[eval_round, 'sum'] += 1
                 label_map[entity['label']] = False
             else:
-                print('FP', entity['text'], df.loc[i, entity['label']])
                 false_positives.loc[eval_round, entity['label']] += 1
                 false_positives.loc[eval_round, 'sum'] += 1
 
         for key in list(label_map.keys()):
             if label_map[key]:
-                print('FN', key)
                 false_negatives.loc[eval_round, key] += 1
                 false_negatives.loc[eval_round, 'sum'] += 1
 
 
-# actual TN = maxTN - FP
-# maxTN = all - TP
+# Accuracy: (TP+TN)/token_num *
+# Precision: TP/(TP+FP)
+# Recall: TP/(TP+FN) *
+
+# Calculating true negatives, accuracy, precision and recall
 
 for i, row in true_positives.iterrows():
     token_num = len(tokens_labels[i][0])
-    for col in row:
+    for col in list(row.keys()):
         if col != 'threshold':
-            true_negatives.loc[i, col] = token_num - true_positives[i, col]
+            true_negatives.loc[i, col] = token_num - true_positives.loc[i, col] - false_positives.loc[i, col] - \
+                                         false_negatives.loc[i, col]
+            model_accuracy.loc[i, col] = (true_positives.loc[i, col] + true_negatives.loc[i, col]) / token_num
+            model_recall.loc[i, col] = true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col])
+            model_precision.loc[i, col] = (true_positives.loc[i, col] + false_positives.loc[i, col]) and\
+                                          (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_positives.loc[i, col]))
         else:
-            true_negatives.loc[i, col] = true_positives[i, col]
-
-print(true_positives)
-print(false_positives)
-print(false_negatives)
-print(true_negatives)
+            true_negatives.loc[i, col] = true_positives.loc[i, col]
+            model_accuracy.loc[i, col] = true_positives.loc[i, col]
+            model_recall.loc[i, col] = true_positives.loc[i, col]
+            model_precision.loc[i, col] = true_positives.loc[i, col]
 
 
-plt.plot(true_positives['threshold'], true_positives['sum'], label='TP', color='green')
-plt.plot(false_positives['threshold'], false_positives['sum'], label='FP', color='blue')
-plt.plot(false_negatives['threshold'], false_negatives['sum'], label='FN', color='red')
-plt.plot(true_negatives['threshold'], true_negatives['sum'], label='TN', color='orange')
+
+plt.plot(model_accuracy['threshold'], model_accuracy['email'], label='Accuracy', color='green')
+plt.plot(model_recall['threshold'], model_recall['email'], label='Recall', color='blue')
+plt.plot(model_precision['threshold'], model_precision['email'], label='Precision', color='red')
 
 plt.legend()
 
