@@ -85,6 +85,10 @@ print(true_positives)
 print(false_positives)
 print(false_negatives)
 
+# actual TN = maxTN - FP
+# maxTN = all - TP
+
+
 
 plt.plot(true_positives['threshold'], true_positives['sum'], label='TP', color='green')
 plt.plot(false_positives['threshold'], false_positives['sum'], label='FP', color='blue')
