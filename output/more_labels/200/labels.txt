@@ -1,5 +1,0 @@
-label_map = {'hobby': True,
-             'phone': True,
-             'email': True,
-             'address': True,
-             'url': True}

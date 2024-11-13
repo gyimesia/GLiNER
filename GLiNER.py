@@ -3,7 +3,7 @@ import pandas as pd
 import math
 import ast
 
-numberofevals = 10
+numberofevals = 9
 numberofinputs = 500
 
 
@@ -58,7 +58,7 @@ recall = pd.DataFrame(columns=columns)
 precision = pd.DataFrame(columns=columns)
 
 for eval_round in range(numberofevals):
-    certainty_threshold = round(eval_round * 0.05 + 0.54, 2)
+    certainty_threshold = round(eval_round * 0.01 + 0.9, 2)
     print(eval_round, certainty_threshold)
     true_positives = add_df_row(true_positives, certainty_threshold, eval_round)
     false_positives = add_df_row(false_positives, certainty_threshold, eval_round)
@@ -103,7 +103,8 @@ for i, row in true_positives.iterrows():
             true_negatives.loc[i, col] = token_num - true_positives.loc[i, col] - false_positives.loc[i, col] - \
                                          false_negatives.loc[i, col]
             accuracy.loc[i, col] = (true_positives.loc[i, col] + true_negatives.loc[i, col]) / token_num
-            recall.loc[i, col] = true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col])
+            recall.loc[i, col] = (true_positives.loc[i, col] + false_negatives.loc[i, col]) and \
+                                 (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col]))
             precision.loc[i, col] = (true_positives.loc[i, col] + false_positives.loc[i, col]) and\
                                     (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_positives.loc[i, col]))
         else:
@@ -118,7 +119,7 @@ print(precision)
 print(recall)
 
 
-key = 'address/'
+key = 'address/refine/'
 
 true_positives.to_csv("./output/" + key + "TP500.csv")
 true_negatives.to_csv("./output/" + key + "TN500.csv")
