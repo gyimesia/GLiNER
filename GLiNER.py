@@ -2,9 +2,9 @@ from gliner import GLiNER
 import pandas as pd
 import math
 import ast
-import matplotlib.pyplot as plt
 
 numberofevals = 10
+numberofinputs = 500
 
 
 def set_labels(labels, ser):
@@ -63,8 +63,7 @@ for eval_round in range(numberofevals):
     true_positives = add_df_row(true_positives, certainty_threshold, eval_round)
     false_positives = add_df_row(false_positives, certainty_threshold, eval_round)
     false_negatives = add_df_row(false_negatives, certainty_threshold, eval_round)
-
-    for i in range(500):
+    for i in range(numberofinputs):
         text = df.loc[i]['text']
         label_map = set_labels(label_map, df.loc[i])
         entities = model_small.predict_entities(text, all_labels, threshold=certainty_threshold)
@@ -78,10 +77,13 @@ for eval_round in range(numberofevals):
                 false_positives.loc[eval_round, entity['label']] += 1
                 false_positives.loc[eval_round, 'sum'] += 1
 
+
         for key in list(label_map.keys()):
             if label_map[key]:
                 false_negatives.loc[eval_round, key] += 1
                 false_negatives.loc[eval_round, 'sum'] += 1
+
+
 
 
 # Accuracy: (TP+TN)/token_num *
@@ -90,8 +92,12 @@ for eval_round in range(numberofevals):
 
 # Calculating true negatives, accuracy, precision and recall
 
+token_num = 0
+for n in range(numberofinputs):
+    token_num += len(tokens_labels[n][0])
+
+
 for i, row in true_positives.iterrows():
-    token_num = len(tokens_labels[i][0])
     for col in list(row.keys()):
         if col != 'threshold':
             true_negatives.loc[i, col] = token_num - true_positives.loc[i, col] - false_positives.loc[i, col] - \
@@ -107,6 +113,11 @@ for i, row in true_positives.iterrows():
             precision.loc[i, col] = true_positives.loc[i, col]
 
 
+print(accuracy)
+print(precision)
+print(recall)
+
+
 key = 'phone/'
 
 true_positives.to_csv("./output/" + key + "TP500.csv")
@@ -117,13 +128,3 @@ accuracy.to_csv("./output/" + key + "accuracy500.csv")
 precision.to_csv("./output/" + key + "precision500.csv")
 recall.to_csv("./output/" + key + "recall500.csv")
 
-
-'''
-plt.plot(accuracy['threshold'], accuracy['email'], label='Accuracy', color='green')
-plt.plot(recall['threshold'], recall['email'], label='Recall', color='blue')
-plt.plot(precision['threshold'], precision['email'], label='Precision', color='red')
-
-plt.legend()
-
-plt.show()
-'''

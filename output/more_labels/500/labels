@@ -1,0 +1,6 @@
+label_map = {'phone': True,
+             'email': True,
+             'address': True,
+             'url': True,
+             'hobby': True
+             }
