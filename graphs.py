@@ -12,9 +12,16 @@ recall = pd.read_csv("./output/"+ label + "/recall500.csv")
 precision5 = pd.read_csv("./output/more_labels/500/precision500.csv")
 precision = pd.read_csv("./output/"+ label + "/precision500.csv")
 
+df5 = pd.read_csv("output/more_labels/500/accuracy500.csv")
+df5ref = pd.read_csv("output/more_labels/refine/accuracy500.csv")
 
+dfcon = pd.concat([df5, df5ref], ignore_index=True)
+dfcon =
+#dfcon = dfcon.sort_values("threshold")
+#dfcon = dfcon.drop_duplicates('threshold')
+print(dfcon)
 
-
+exit(0)
 plt.plot(accuracy5['threshold'], accuracy5[label], label=label, color='green')
 plt.plot(accuracy['threshold'], accuracy[label], label=label, color='green')
 #plt.plot(recall5['threshold'], recall5[label], label=label, color='brown')
