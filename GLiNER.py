@@ -90,8 +90,6 @@ for eval_round in range(numberofevals):
 # Precision: TP/(TP+FP)
 # Recall: TP/(TP+FN) *
 
-# Calculating true negatives, accuracy, precision and recall
-
 token_num = 0
 for n in range(numberofinputs):
     token_num += len(tokens_labels[n][0])
