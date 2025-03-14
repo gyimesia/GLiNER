@@ -2,10 +2,16 @@ from gliner import GLiNER
 import pandas as pd
 import math
 import ast
+import mlflow
+import os
 
-numberofevals = 9
-numberofinputs = 500
 
+thresholds = [0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99]
+numberofinputs = 10
+model_name = "vicgalle/gliner-small-pii"
+
+mlflow.set_tracking_uri("http://10.20.160.89:5000")
+mlflow.set_experiment("GLiNER")
 
 def set_labels(labels, ser):
     for label_key in list(labels.keys()):
@@ -21,21 +27,27 @@ def token_label_pairs(token_label_list):
         pairs.append([token_list, label_list])
     return pairs
 
-
-def add_df_row(dframe, cthreshold, rownum):
-    for i in dframe:
-        dframe.loc[rownum, i] = 0
-    dframe.loc[rownum, 'threshold'] = cthreshold
+def add_df_row(dframe, cthreshold):
+    dframe.loc[len(dframe)] = [0] * (len(dframe.columns) - 1) + [cthreshold]
     return dframe
 
+
+def calculate_metrics(tp, fp, fn):
+    tn = token_num - tp - fp - fn
+    return {
+        'true_negatives': tn,
+        'accuracy': (tp + tn) / token_num,
+        'recall': tp / (tp + fn) if (tp + fn) else 0,
+        'precision': tp / (tp + fp) if (tp + fp) else 0
+    }
 
 # Loading the dataset into a dataframe and dropping unused columns
 df_orig = pd.read_csv('./input/pii_dataset.csv', header=0)
 df = df_orig.drop(columns=['document', 'prompt', 'prompt_id', 'len', 'trailing_whitespace'])
 
 label_map = {#'phone': True,
-             #'email': True,
-             'address': True,
+             'email': True,
+             #'address': True,
              #'url': True,
              #'hobby': True
              }
@@ -45,7 +57,7 @@ all_labels = list(label_map.keys())
 tokens_labels = token_label_pairs([list(i) for i in zip(df['tokens'], df['labels'])])
 
 # Loading the module
-model_small = GLiNER.from_pretrained("vicgalle/gliner-small-pii", load_tokenizer="True")
+model_small = GLiNER.from_pretrained(model_name, load_tokenizer="True")
 
 columns = list(label_map.keys())
 columns.extend(['sum', 'threshold'])
@@ -57,73 +69,91 @@ accuracy = pd.DataFrame(columns=columns)
 recall = pd.DataFrame(columns=columns)
 precision = pd.DataFrame(columns=columns)
 
-for eval_round in range(numberofevals):
-    certainty_threshold = round(eval_round * 0.01 + 0.9, 2)
-    print(eval_round, certainty_threshold)
-    true_positives = add_df_row(true_positives, certainty_threshold, eval_round)
-    false_positives = add_df_row(false_positives, certainty_threshold, eval_round)
-    false_negatives = add_df_row(false_negatives, certainty_threshold, eval_round)
+for certainty_threshold in thresholds:
+    true_positives = add_df_row(true_positives, certainty_threshold)
+    false_positives = add_df_row(false_positives, certainty_threshold)
+    false_negatives = add_df_row(false_negatives, certainty_threshold)
     for i in range(numberofinputs):
         text = df.loc[i]['text']
         label_map = set_labels(label_map, df.loc[i])
         entities = model_small.predict_entities(text, all_labels, threshold=certainty_threshold)
-
         for entity in entities:
             if df.loc[i, entity['label']] == entity['text']:
-                true_positives.loc[eval_round, entity['label']] += 1
-                true_positives.loc[eval_round, 'sum'] += 1
+                true_positives.at[true_positives.index[-1], entity['label']] += 1
+                true_positives.at[true_positives.index[-1], 'sum'] += 1
                 label_map[entity['label']] = False
             else:
-                false_positives.loc[eval_round, entity['label']] += 1
-                false_positives.loc[eval_round, 'sum'] += 1
-
+                false_positives.at[false_positives.index[-1], entity['label']] += 1
+                false_positives.at[false_positives.index[-1], 'sum'] += 1
 
         for key in list(label_map.keys()):
             if label_map[key]:
-                false_negatives.loc[eval_round, key] += 1
-                false_negatives.loc[eval_round, 'sum'] += 1
+                false_negatives.at[false_negatives.index[-1], key] += 1
+                false_negatives.at[false_negatives.index[-1], 'sum'] += 1
 
 
+# Calculate the total number of tokens
+token_num = sum(len(tokens[0]) for tokens in tokens_labels)
 
+with mlflow.start_run(run_name=f"GLiNER-{model_name}-{numberofinputs}"):
+    # Log parameters
+    mlflow.log_param("model_name", model_name)
+    mlflow.log_param("number_of_inputs", numberofinputs)
+    mlflow.log_param("labels", all_labels)
+    mlflow.log_param("thresholds", thresholds)
+    mlflow.log_param("token_num", token_num)
 
-# Accuracy: (TP+TN)/token_num *
-# Precision: TP/(TP+FP)
-# Recall: TP/(TP+FN) *
+    # Calculate true negatives, accuracy, recall, and precision
+    for i, row in true_positives.iterrows():
+        for col in row.keys():
+            if col != 'threshold':
+                tp = true_positives.loc[i, col]
+                fp = false_positives.loc[i, col]
+                fn = false_negatives.loc[i, col]
 
-token_num = 0
-for n in range(numberofinputs):
-    token_num += len(tokens_labels[n][0])
+                metrics = calculate_metrics(tp, fp, fn)
 
+                true_negatives.loc[i, col] = metrics['true_negatives']
+                accuracy.loc[i, col] = metrics['accuracy']
+                recall.loc[i, col] = metrics['recall']
+                precision.loc[i, col] = metrics['precision']
+            else:
+                # Copy threshold values
+                threshold = row['threshold']  # Get correct threshold value
+                true_negatives.loc[i, col] = threshold
+                accuracy.loc[i, col] = threshold
+                recall.loc[i, col] = threshold
+                precision.loc[i, col] = threshold
 
-for i, row in true_positives.iterrows():
-    for col in list(row.keys()):
-        if col != 'threshold':
-            true_negatives.loc[i, col] = token_num - true_positives.loc[i, col] - false_positives.loc[i, col] - \
-                                         false_negatives.loc[i, col]
-            accuracy.loc[i, col] = (true_positives.loc[i, col] + true_negatives.loc[i, col]) / token_num
-            recall.loc[i, col] = (true_positives.loc[i, col] + false_negatives.loc[i, col]) and \
-                                 (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_negatives.loc[i, col]))
-            precision.loc[i, col] = (true_positives.loc[i, col] + false_positives.loc[i, col]) and\
-                                    (true_positives.loc[i, col] / (true_positives.loc[i, col] + false_positives.loc[i, col]))
-        else:
-            true_negatives.loc[i, col] = true_positives.loc[i, col]
-            accuracy.loc[i, col] = true_positives.loc[i, col]
-            recall.loc[i, col] = true_positives.loc[i, col]
-            precision.loc[i, col] = true_positives.loc[i, col]
+            step = int(float(row['threshold']) * 100)
+            mlflow.log_metrics({
+                f"{col}/accuracy": accuracy.loc[i, col],
+                f"{col}/precision": precision.loc[i, col],
+                f"{col}/recall": recall.loc[i, col],
+                f"{col}/true_positives": true_positives.loc[i, col],
+                f"{col}/true_negatives": true_negatives.loc[i, col],
+                f"{col}/false_positives": false_positives.loc[i, col],
+                f"{col}/false_negatives": false_negatives.loc[i, col]
+            }, step=step)
+        
 
+    path = f'output/email/{numberofinputs}/'
 
-print(accuracy)
-print(precision)
-print(recall)
+    metrics_files = {
+        "true_positives": true_positives,
+        "true_negatives": true_negatives,
+        "false_positives": false_positives,
+        "false_negatives": false_negatives,
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall
+    }
 
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-key = 'address/refine/'
-
-true_positives.to_csv("./output/" + key + "TP500.csv")
-true_negatives.to_csv("./output/" + key + "TN500.csv")
-false_positives.to_csv("./output/" + key + "FP500.csv")
-false_negatives.to_csv("./output/" + key + "FN500.csv")
-accuracy.to_csv("./output/" + key + "accuracy500.csv")
-precision.to_csv("./output/" + key + "precision500.csv")
-recall.to_csv("./output/" + key + "recall500.csv")
-
+    for name, df in metrics_files.items():
+        file_path = f"./{path}{name}.csv"
+        abs_path = os.path.abspath(file_path)
+        df.to_csv(abs_path, index=False)
+        mlflow.log_artifact(abs_path)
