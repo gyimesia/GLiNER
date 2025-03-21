@@ -90,7 +90,6 @@ for certainty_threshold in thresholds:
                 false_negatives.at[false_negatives.index[-1], key] += 1
                 false_negatives.at[false_negatives.index[-1], 'sum'] += 1
 
-
 # Calculate the total number of tokens
 token_num = sum(len(tokens[0]) for tokens in tokens_labels)
 
