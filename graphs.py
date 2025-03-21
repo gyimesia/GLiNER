@@ -26,10 +26,10 @@ for filename in os.listdir(directory):
 
 '''
 
-label = 'phone'
+label = 'sum'
 
 df5 = pd.read_csv("output/more_labels/accuracy500.csv")
-df = pd.read_csv("output/" + label + "/accuracy500.csv")
+df = pd.read_csv("output/more_labels/recall500.csv")
 
 '''
 for i in df5:

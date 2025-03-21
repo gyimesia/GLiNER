@@ -1,0 +1,5 @@
+[core]
+    autostage = true
+    remote = ssh-storage
+['remote "ssh-storage"']
+    url = ssh://jim@10.20.160.89:/home/jim/data

@@ -5,7 +5,6 @@ import ast
 import mlflow
 import os
 
-
 thresholds = [0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99]
 numberofinputs = 10
 model_name = "vicgalle/gliner-small-pii"
@@ -36,16 +35,16 @@ def calculate_metrics(tp, fp, fn):
     tn = token_num - tp - fp - fn
     return {
         'true_negatives': tn,
-        'accuracy': (tp + tn) / token_num,
-        'recall': tp / (tp + fn) if (tp + fn) else 0,
-        'precision': tp / (tp + fp) if (tp + fp) else 0
+        'accuracy': ((tp + tn) / token_num) * 100,
+        'recall': (tp / (tp + fn)) * 100 if (tp + fn) else 0,
+        'precision': (tp / (tp + fp)) * 100 if (tp + fp) else 0
     }
 
 # Loading the dataset into a dataframe and dropping unused columns
 df_orig = pd.read_csv('./input/pii_dataset.csv', header=0)
 df = df_orig.drop(columns=['document', 'prompt', 'prompt_id', 'len', 'trailing_whitespace'])
 
-label_map = {#'phone': True,
+label_map = {'phone': True,
              'email': True,
              #'address': True,
              #'url': True,
@@ -57,7 +56,7 @@ all_labels = list(label_map.keys())
 tokens_labels = token_label_pairs([list(i) for i in zip(df['tokens'], df['labels'])])
 
 # Loading the module
-model_small = GLiNER.from_pretrained(model_name, load_tokenizer="True")
+model = GLiNER.from_pretrained(model_name, load_tokenizer=True)
 
 columns = list(label_map.keys())
 columns.extend(['sum', 'threshold'])
@@ -76,7 +75,7 @@ for certainty_threshold in thresholds:
     for i in range(numberofinputs):
         text = df.loc[i]['text']
         label_map = set_labels(label_map, df.loc[i])
-        entities = model_small.predict_entities(text, all_labels, threshold=certainty_threshold)
+        entities = model.predict_entities(text, all_labels, threshold=certainty_threshold)
         for entity in entities:
             if df.loc[i, entity['label']] == entity['text']:
                 true_positives.at[true_positives.index[-1], entity['label']] += 1
@@ -157,3 +156,5 @@ with mlflow.start_run(run_name=f"GLiNER-{model_name}-{numberofinputs}"):
         abs_path = os.path.abspath(file_path)
         df.to_csv(abs_path, index=False)
         mlflow.log_artifact(abs_path)
+
+
